@@ -36,7 +36,7 @@ def generate_user_specified_points(image_path):
     image = Image.open(image_path)
     plt.imshow(image)
     plt.title("Click to select points")
-    points = plt.ginput(n=-1)  # Allow unlimited points until user finishes - PRESS ENTER when done
+    points = plt.ginput(n=-1)  # PRESS ENTER when done
     plt.close()
 
     print(f"Selected points: {points}")
@@ -64,15 +64,15 @@ def gen_grey_and_colour_points(points):
 if __name__ == "__main__":
 
     # e.g. 
-    N = 10  # Number of rows in the grid
+    N = 20  # Number of rows in the grid
     M = 10  # Number of columns in the grid
-    test_image_path = "images/flag4.png"
+    test_image_path = "images/gradient2.png"
 
     colour_image = Image.open(test_image_path)
     colour_image.save('working_images/colour.png')
 
-    #points = generate_regular_grid_points(test_image_path, N, M)
-    points = generate_random_points(test_image_path, N*M)  # Generate N*M random points
+    points = generate_regular_grid_points(test_image_path, N, M)
+    #points = generate_random_points(test_image_path, N*M)  # Generate N*M random points
     #points = generate_user_specified_points(test_image_path)
     
     convert_to_greyscale(test_image_path)
