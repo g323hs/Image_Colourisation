@@ -5,7 +5,7 @@ import os
 
 if __name__ == "__main__":
     HEIGHT = 200
-    WIDTH = 200
+    WIDTH = 500
 
     def save_image_pil(image, filename):
         os.makedirs('images', exist_ok=True)

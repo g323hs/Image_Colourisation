@@ -5,11 +5,12 @@ from PIL import Image
 from gen_greyscale import convert_to_greyscale
 import gen_point_set
 import image_difference_score
+import os
 
 if __name__ == "__main__":
 
 
-    test_image_path = "images/flag5.png"
+    test_image_path = "images/gradient2.png"
 
     colour_image = Image.open(test_image_path)
     colour_image.save('working_images/colour.png')
@@ -20,12 +21,19 @@ if __name__ == "__main__":
     ssim_scores = []
     grid_sizes = []
 
-    for k in range(1, 11):  # N = M = 1 to 10
+    # empy the folder called series_of_images
+    for filename in os.listdir('series_of_images'): 
+        file_path = os.path.join('series_of_images', filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+    for k in range(1, 10 + 1):
         N = k
         M = k
         print(f"Running for N = M = {k}")
 
-        points = gen_point_set.generate_regular_grid_points(test_image_path, N, M)
+        # points = gen_point_set.generate_regular_grid_points(test_image_path, N, M)
+        points = gen_point_set.generate_random_points(test_image_path, N*M, seed=1)
 
         colourised = gen_colourised.colourise_image(
             height=colour_image.height,
@@ -35,20 +43,21 @@ if __name__ == "__main__":
             sigma1=100.0,
             sigma2=100.0,
             p=0.5,
-            delta=2.0e-4
+            delta=2.0e-4, 
+            method='gaussian'
         )
 
         colourised_image = Image.fromarray(colourised)
-        colourised_image.save('working_images/colourised_image.png')
+        colourised_image.save(f'series_of_images/colourised_image_{k}.png')
 
         frobenius_norm = image_difference_score.pixelwise_difference(
             "working_images/colour.png",
-            "working_images/colourised_image.png"
+            f"series_of_images/colourised_image_{k}.png"
         )
 
         ssim_index = image_difference_score.ssim_difference(
             "working_images/colour.png",
-            "working_images/colourised_image.png"
+            f"series_of_images/colourised_image_{k}.png"
         )
 
         frob_scores.append(frobenius_norm)
