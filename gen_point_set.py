@@ -66,14 +66,19 @@ if __name__ == "__main__":
     # e.g. 
     N = 20  # Number of rows in the grid
     M = 10  # Number of columns in the grid
-    test_image_path = "images/gradient2.png"
+    test_image_path = "images/flag2.png"
+    # test_image_path = "images/gradient2.png"
 
+    # --- Generate the colour image and save it --- #
     colour_image = Image.open(test_image_path)
     colour_image.save('working_images/colour.png')
 
-    points = generate_regular_grid_points(test_image_path, N, M)
-    #points = generate_random_points(test_image_path, N*M)  # Generate N*M random points
+    # --- Generate the greyscale image and save it --- #
+    convert_to_greyscale(test_image_path)
+
+    # --- Generate the points and save the grey and colour points image --- #
+    #points = generate_regular_grid_points(test_image_path, N, M)
+    points = generate_random_points(test_image_path, N*M)  # Generate N*M random points
     #points = generate_user_specified_points(test_image_path)
     
-    convert_to_greyscale(test_image_path)
     gen_grey_and_colour_points(points)
