@@ -32,8 +32,8 @@ if __name__ == "__main__":
         M = k
         print(f"Running for N = M = {k}")
 
-        # points = gen_point_set.generate_regular_grid_points(test_image_path, N, M)
-        points = gen_point_set.generate_random_points(test_image_path, N*M, seed=1)
+        points = gen_point_set.generate_regular_grid_points(test_image_path, N, M)
+        # points = gen_point_set.generate_random_points(test_image_path, N*M, seed=1)
 
         colourised = gen_colourised.colourise_image(
             height=colour_image.height,
