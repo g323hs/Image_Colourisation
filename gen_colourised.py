@@ -12,7 +12,7 @@ def phi(z, method):
     else:
         raise ValueError(f"Unknown method: {method}")
     
-def build_kernel_D_matrix(points, sigma1, sigma2, p, method):
+def build_kernel_D_matrix(points, sigma1, sigma2, p, width, height, method, save_path_folder):
     """Vectorized construction of the n-by-n kernel matrix K_D.
 
     The optional parameter `kernel` selects the spatial radial function applied to
@@ -26,10 +26,10 @@ def build_kernel_D_matrix(points, sigma1, sigma2, p, method):
     diff = points[:, None, :] - points[None, :, :]
     dist2 = np.sum(diff**2, axis=2)
 
-    phi1 = phi(np.sqrt(dist2) / sigma1, method)
+    phi1 = phi(np.sqrt(dist2) / sigma1 / np.sqrt(width**2 + height**2), method)
 
     # Load greyscale image once and sample intensities for the points.
-    grey_image = Image.open("working_images/grey.png")
+    grey_image = Image.open(f"{save_path_folder}/grey.png")
     grey_arr = np.asarray(grey_image)
 
     # Clip and convert to ints in case points are floats or out-of-bounds
@@ -40,13 +40,13 @@ def build_kernel_D_matrix(points, sigma1, sigma2, p, method):
 
     # Intensity differences and intensity kernel phi2
     intensity_diff = np.abs(intensities[:, None] - intensities[None, :]) ** p
-    phi2 = phi(intensity_diff / sigma2, method)
+    phi2 = phi(intensity_diff / sigma2 / 255, method)
 
     # Combined kernel
     K_D = phi1 * phi2
     return K_D
 
-def build_kernel_omega_matrix(points, sigma1, sigma2, p, height, width, method):
+def build_kernel_omega_matrix(points, sigma1, sigma2, p, height, width, method, save_path_folder):
     """Vectorized construction of the m-by-n kernel matrix K_omega.
 
     `method` selects the spatial radial function as in build_kernel_D_matrix.
@@ -60,7 +60,7 @@ def build_kernel_omega_matrix(points, sigma1, sigma2, p, height, width, method):
     pixel_coords = np.stack([x_coords.ravel(), y_coords.ravel()], axis=1)
 
     # Load greyscale image once and flatten
-    grey_image = Image.open("working_images/grey.png")
+    grey_image = Image.open(f"{save_path_folder}/grey.png")
     grey_arr = np.asarray(grey_image)
     grey_pixels = grey_arr.ravel()
 
@@ -70,7 +70,7 @@ def build_kernel_omega_matrix(points, sigma1, sigma2, p, height, width, method):
     # Pairwise spatial squared distances: shape (m, n)
     diff = pixel_coords[:, None, :] - pts[None, :, :]
     dist2 = np.sum(diff**2, axis=2)
-    phi1 = phi(np.sqrt(dist2) / sigma1, method)
+    phi1 = phi(np.sqrt(dist2) / sigma1 / np.sqrt(width**2 + height**2), method)
     
     # Compute point intensities by indexing into the flattened grey_pixels array.
     xs = np.clip(pts[:, 0].astype(int), 0, width - 1)
@@ -80,28 +80,31 @@ def build_kernel_omega_matrix(points, sigma1, sigma2, p, height, width, method):
 
     # Intensity differences matrix (m, n) and intensity kernel phi2
     intensity_diff = np.abs(grey_pixels[:, None] - point_intensities[None, :]) ** p
-    phi2 = phi(intensity_diff / sigma2, method)
+    phi2 = phi(intensity_diff / sigma2 / 255, method)
 
     # Combined kernel (m, n)
     k_omega[:, :] = phi1 * phi2
 
     return k_omega
 
-def solve_coefficients(points, colours, sigma1, sigma2, p, delta, method):
-    K_D = build_kernel_D_matrix(points, sigma1, sigma2, p, method)
+def solve_coefficients(points, colours, sigma1, sigma2, p, delta, width, height, method, save_path_folder):
+    K_D = build_kernel_D_matrix(points, sigma1, sigma2, p, width, height, method, save_path_folder)
     n = points.shape[0]
     A = np.linalg.solve(K_D + delta * np.eye(n), colours)
     return A
 
-def colourise_image(height, width, points, colours, sigma1, sigma2, p, delta, method='gaussian'):
-    print("Solving for coefficients...")
-    A = solve_coefficients(points, colours, sigma1, sigma2, p, delta, method)
+def colourise_image(height, width, points, colours, sigma1, sigma2, p, delta, method, save_path_folder, debug=False):
+    if debug:
+        print("Solving for coefficients...")
+    A = solve_coefficients(points, colours, sigma1, sigma2, p, delta, width, height, method, save_path_folder)
 
     # form the kernel matrix K_omega for all pixels in the image
-    print("Building kernel matrix K_omega for all pixels...")
-    K_omega = build_kernel_omega_matrix(points, sigma1, sigma2, p, height, width, method)
+    if debug:
+        print("Building kernel matrix K_omega for all pixels...")
+    K_omega = build_kernel_omega_matrix(points, sigma1, sigma2, p, height, width, method, save_path_folder)
 
-    print("Applying kernel to coefficients to get colourised image...")
+    if debug:
+        print("Applying kernel to coefficients to get colourised image...")
     F = K_omega @ A  # shape (height * width, 3)
     F = F.reshape((height, width, 3))
 
@@ -109,64 +112,60 @@ def colourise_image(height, width, points, colours, sigma1, sigma2, p, delta, me
     F = np.clip(F, 0, 255)
     return F.astype(np.uint8)
 
+def colourise_process(image_path, save_path_folder, n=1, m=1, point_gen_method='grid', sigma1=100, sigma2=100, p=0.5, delta=2.0e-8, phi_method='gaussian', debug=False):
+    colour_image = Image.open(image_path)
+    colour_image.save(f'{save_path_folder}/colour.png')
+    
+    convert_to_greyscale(image_path, save_path_folder)  # Generate and save the greyscale image for kernel computations
+
+    if point_gen_method == 'grid':
+        points = gen_point_set.generate_regular_grid_points(image_path, n, m)
+    elif point_gen_method == 'random':
+        points = gen_point_set.generate_random_points(image_path, n*m, 1)
+    elif point_gen_method == 'select':
+        points = gen_point_set.generate_user_specified_points(image_path)
+    else:
+        raise ValueError(f"Unknown point generation method: {point_gen_method}")
+
+    gen_point_set.gen_grey_and_colour_points(points, save_path_folder) # (Optional - just for visualization)
+
+    colourised = colourise_image(
+        height=colour_image.height,
+        width=colour_image.width,
+        points=np.array([(x, y) for (x, y, rgb) in points]),
+        colours=np.array([rgb for (x, y, rgb) in points]),
+        sigma1=sigma1,
+        sigma2=sigma2,
+        p=p,
+        delta=delta,
+        method=phi_method,
+        save_path_folder=save_path_folder,
+        debug=debug
+    )
+
+    colourised_image = Image.fromarray(colourised)
+    colourised_image.save(f"{save_path_folder}/colourised.png")
+
+    # Calculate the image difference score
+    if debug:
+        frobenius_norm = image_difference_score.pixelwise_difference(f"{save_path_folder}/colour.png", f"{save_path_folder}/colourised.png")
+        print(f"Image Difference Score: {frobenius_norm}")
+        ssim_index = image_difference_score.ssim_difference(f"{save_path_folder}/colour.png", f"{save_path_folder}/colourised.png")
+        print(f"SSIM Index: {ssim_index}")
+
 
 if __name__ == "__main__":
     # e.g. 
-    N = 4  # Number of rows in the grid
-    M = 4  # Number of columns in the grid
-    test_image_path = "images/gradient1.png"
+    N = 10  # Number of rows in the grid
+    M = 20  # Number of columns in the grid
+    #test_image_path = "IMG_6006.jpg"
+    # test_image_path = "images/gradient2.png"
+    # test_image_path = "images/checkerboard.png"
+    test_image_path = "images/complex_pattern.png"
+    save_path_folder = "working_images"
 
-    colour_image = Image.open(test_image_path)
-    colour_image.save('working_images/colour.png')
-
-    convert_to_greyscale(test_image_path)
-
-    points = gen_point_set.generate_regular_grid_points(test_image_path, N, M)
-    #points = gen_point_set.generate_random_points(test_image_path, N*M)  # Generate N*M random points
-    gen_point_set.gen_grey_and_colour_points(points) # not strictly necessary
-
-    colourised = colourise_image(
-        height=colour_image.height,
-        width=colour_image.width,
-        points=np.array([(x, y) for (x, y, rgb) in points]),
-        colours=np.array([rgb for (x, y, rgb) in points]),
-        sigma1 = 100.0,
-        sigma2 = 100.0,
-        p = 0.5,
-        delta = 2.0e-4, 
-        method = 'wendland'
-    )
-
-    colourised_image = Image.fromarray(colourised)
-    colourised_image.save('working_images/colourised_image_wendland.png')
-
-    # Calculate the image difference score
-    frobenius_norm = image_difference_score.pixelwise_difference("working_images/colour.png", "working_images/colourised_image_wendland.png")
-    print(f"Image Difference Score: {frobenius_norm}")
-    ssim_index = image_difference_score.ssim_difference("working_images/colour.png", "working_images/colourised_image_wendland.png")
-    print(f"SSIM Index: {ssim_index}")
-
-    colourised = colourise_image(
-        height=colour_image.height,
-        width=colour_image.width,
-        points=np.array([(x, y) for (x, y, rgb) in points]),
-        colours=np.array([rgb for (x, y, rgb) in points]),
-        sigma1 = 100.0,
-        sigma2 = 100.0,
-        p = 0.5,
-        delta = 2.0e-4, 
-        method = 'gaussian'
-    )
-
-    colourised_image = Image.fromarray(colourised)
-    colourised_image.save('working_images/colourised_image_gaussian.png')
-
-    # Calculate the image difference score
-    frobenius_norm = image_difference_score.pixelwise_difference("working_images/colour.png", "working_images/colourised_image_gaussian.png")
-    print(f"Image Difference Score: {frobenius_norm}")
-    ssim_index = image_difference_score.ssim_difference("working_images/colour.png", "working_images/colourised_image_gaussian.png")
-    print(f"SSIM Index: {ssim_index}")
-
+    colourise_process(test_image_path, save_path_folder, n=N, m=M, point_gen_method='grid', sigma1=50, sigma2=100, p=0.5, delta=2.0e-10, phi_method='gaussian', debug=True)
+    
 
 
 
