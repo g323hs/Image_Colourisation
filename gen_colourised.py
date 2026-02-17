@@ -158,10 +158,10 @@ if __name__ == "__main__":
     # e.g. 
     N = 10  # Number of rows in the grid
     M = 20  # Number of columns in the grid
-    #test_image_path = "IMG_6006.jpg"
+    test_image_path = "images/IMG_6006.jpg"
     # test_image_path = "images/gradient2.png"
     # test_image_path = "images/checkerboard.png"
-    test_image_path = "images/complex_pattern.png"
+    # test_image_path = "images/complex_pattern.png"
     save_path_folder = "working_images"
 
     colourise_process(test_image_path, save_path_folder, n=N, m=M, point_gen_method='grid', sigma1=50, sigma2=100, p=0.5, delta=2.0e-10, phi_method='gaussian', debug=True)

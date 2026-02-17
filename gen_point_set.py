@@ -16,7 +16,7 @@ def generate_regular_grid_points(image_path, N, M):
     return points
 
 # Method 2: Random points
-def generate_random_points(image_path, num_points, seed):
+def generate_random_points(image_path, num_points, seed = 1):
     """Generate a specified number of random points from the image."""
     import random
     image = Image.open(image_path)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     # --- Generate the points and save the grey and colour points image --- #
     #points = generate_regular_grid_points(test_image_path, N, M)
-    points = generate_random_points(test_image_path, N*M, seed=1)  # Generate N*M random points
+    points = generate_random_points(test_image_path, N*M)  # Generate N*M random points
     #points = generate_user_specified_points(test_image_path)
     
     gen_grey_and_colour_points(points, save_path_folder)
