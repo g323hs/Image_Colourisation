@@ -56,6 +56,7 @@ def get_ssim_score(params, image_path, save_path_folder, phi_method='gaussian'):
 if __name__ == "__main__":
     # generate_images(100, 100)  # generate a 100x100 test image
     image_path = "images/IMG_6006.jpg"
+    #image_path = "images/checkerboard.png"
     save_path_folder = "optimisation_results"
 
     scale_image_to_size(image_path, f"{save_path_folder}/colour.png", target_size=(100, 100))
@@ -68,14 +69,14 @@ if __name__ == "__main__":
     phi_methods = ['gaussian', 'wendland']
     ssim_scores = []
     for phi_method in phi_methods:
-        initial_guess = [50, 150, 0.08, 2.0e-8]
-        bounds = [(1, 100), (1, 2000), (0.01, 1), (1e-12, 1e-8)]
+        initial_guess = [100, 150, 0.08, 2.0e-8]
+        bounds = [(1, 1000), (1, 2000), (0.01, 1), (1e-12, 1e-6)]
         result = minimize(get_ssim_score,
                           initial_guess,
                           args=(image_path, save_path_folder, phi_method),
                           bounds=bounds,
                           method='Nelder-Mead',
-                          options={'maxiter': 20, 'xatol': 1e-3, 'fatol': 1e-3})
+                          options={'maxiter': 10, 'xatol': 1e-6, 'fatol': 1e-6})
         print(result.success, result.message)
         ssim_scores.append([-result.fun, result.x])
 

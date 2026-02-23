@@ -113,4 +113,4 @@ def generate_images(height=100, width=100):
 
 
 if __name__ == "__main__":
-    generate_images(100, 100)
+    generate_images(500, 500)
