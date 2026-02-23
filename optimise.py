@@ -47,48 +47,59 @@ def compare_image_size_to_time(image_path, save_path_folder):
     plt.savefig('optimisation_results/time_vs_image_size.png')
     plt.show()
 
-def get_ssim_score(params, image_path, save_path_folder, phi_method='gaussian'):
+def get_ssim_score(params, image_path, save_path_folder, phi_method='gaussian', n=1, m=1):
     sigma1, sigma2, p, delta = params
-    colourise_process(image_path, save_path_folder, n=20, m=20, point_gen_method='random', sigma1=sigma1, sigma2=sigma2, p=p, delta=delta, phi_method=phi_method)
+    colourise_process(image_path, save_path_folder, n, m, point_gen_method='random', sigma1=sigma1, sigma2=sigma2, p=p, delta=delta, phi_method=phi_method)
     ssim_score = image_difference_score.ssim_difference(image_path, f"{save_path_folder}/colourised.png")
     return -ssim_score  # we want to maximise ssim so we return the negative
+
+def get_pixelwise_difference(params, image_path, save_path_folder, phi_method='gaussian', n=1, m=1):
+    sigma1, sigma2, p, delta = params
+    colourise_process(image_path, save_path_folder, n, m, point_gen_method='random', sigma1=sigma1, sigma2=sigma2, p=p, delta=delta, phi_method=phi_method)
+    pixel_diff = pixelwise_difference(image_path, f"{save_path_folder}/colourised.png")
+    return pixel_diff
 
 if __name__ == "__main__":
     # generate_images(100, 100)  # generate a 100x100 test image
     image_path = "images/IMG_6006.jpg"
-    #image_path = "images/checkerboard.png"
+    image_path = "images/complex_pattern.png"
     save_path_folder = "optimisation_results"
 
     scale_image_to_size(image_path, f"{save_path_folder}/colour.png", target_size=(100, 100))
     image_path = f"{save_path_folder}/colour.png"
 
+    num_points = 1000
 
     # compare_N_to_time(image_path, save_path_folder)
     # compare_image_size_to_time(image_path, save_path_folder)
 
     phi_methods = ['gaussian', 'wendland']
-    ssim_scores = []
+    scores = []
     for phi_method in phi_methods:
-        initial_guess = [100, 150, 0.08, 2.0e-8]
-        bounds = [(1, 1000), (1, 2000), (0.01, 1), (1e-12, 1e-6)]
+        print(f"Optimising for phi method: {phi_method}")
+        initial_guess = [20, 100, 0.5, 2.0e-10]
+        bounds = [(1, 1000), (0.001, 2000), (0.1, 1.0), (1e-12,1e-6)]
         result = minimize(get_ssim_score,
                           initial_guess,
-                          args=(image_path, save_path_folder, phi_method),
+                          args=(image_path, save_path_folder, phi_method, num_points),
                           bounds=bounds,
                           method='Nelder-Mead',
-                          options={'maxiter': 10, 'xatol': 1e-6, 'fatol': 1e-6})
+                          options={'maxiter': 15, 'xatol': 1e-4, 'fatol': 1e-4})
+
         print(result.success, result.message)
-        ssim_scores.append([-result.fun, result.x])
+        scores.append([-result.fun, result.x])
 
     # select the best phi method based on the highest ssim score
-    best_phi_method_index = np.argmax([score[0] for score in ssim_scores])
+    best_phi_method_index = np.argmax([score[0] for score in scores])
     best_phi_method = phi_methods[best_phi_method_index]
-    best_params = ssim_scores[best_phi_method_index][1]
+    best_params = scores[best_phi_method_index][1]
     print(f"Best phi parameters: {best_params} for phi method: {best_phi_method}")
-    print(f"Best SSIM score: {ssim_scores[best_phi_method_index][0]}")
+    print(f"Best score: {scores[best_phi_method_index][0]}")
 
-    colourise_process(image_path, save_path_folder, n=20, m=20, point_gen_method='random', sigma1=best_params[0], sigma2=best_params[1], p=best_params[2], delta=best_params[3], phi_method=best_phi_method, debug=False)
+    colourise_process(image_path, save_path_folder, n=num_points, m=1, point_gen_method='random', sigma1=best_params[0], sigma2=best_params[1], p=best_params[2], delta=best_params[3], phi_method=best_phi_method, debug=False)
 
     # calculate the pixelwise difference between the original and the colourised image
+    ssim = image_difference_score.ssim_difference(image_path, f"{save_path_folder}/colourised.png")
+    print(f"SSIM score: {ssim}")
     pixelwise_diff = pixelwise_difference(image_path, f"{save_path_folder}/colourised.png")
     print(f"Pixelwise difference: {pixelwise_diff}")
